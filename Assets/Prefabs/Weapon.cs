@@ -1,11 +1,9 @@
 using Fusion;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Weapon : NetworkBehaviour
 {
-
     HashSet<NetworkObject> hitObjects;
     bool atk;
 
@@ -43,8 +41,8 @@ public class Weapon : NetworkBehaviour
         if (!hitObjects.Add(netObj)) return;
 
         Debug.Log("Hit Player");
-        var otherAtributes = other.GetComponent<PlayerAtributes>();
-        otherAtributes.RpcApplyDamage(10f, Object.InputAuthority);
+        var otherAtributes = other.GetComponent<PlayerStas>();
+        otherAtributes.RpcTakeDamage(10, Object.InputAuthority);
     }
 
 }

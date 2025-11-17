@@ -1,5 +1,6 @@
 using UnityEngine;
 using Fusion;
+using Unity.Cinemachine;
 
 public class PraMovement : NetworkBehaviour
 {
@@ -29,11 +30,36 @@ public class PraMovement : NetworkBehaviour
             inputActions = new Kien();
             inputActions.Enable();
         }
+
+        var Cinecam = GameObject.Find("CinemachineCamera").GetComponent<CinemachineCamera>();
+        if (Cinecam != null)
+        {
+            CameraTarget target = Cinecam.Target;
+            target.TrackingTarget = transform;
+            Cinecam.Target = target;
+        }
+    }
+
+    bool atk;
+    int attack;
+    void Update()
+    {
+        if (!Object.HasInputAuthority) return;
+
+        if (inputActions.Player.Atk.WasPerformedThisFrame())
+            atk = true;
     }
 
     public override void FixedUpdateNetwork()
     {
         if (!Object.HasInputAuthority) return;
+        if(atk == true)
+        {
+            attack = Random.Range(0, 2);
+            networkMecanimAnimator.Animator.SetBool("atk", true);
+            networkMecanimAnimator.Animator.SetInteger("attack", attack);
+            atk = false;
+        }
 
         MoveMent();
     }
