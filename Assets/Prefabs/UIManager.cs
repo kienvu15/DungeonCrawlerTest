@@ -34,7 +34,6 @@ public class UIManager : MonoBehaviour
 
     private void ToggleMenu(InputAction.CallbackContext context)
     {
-        
         panel.gameObject.SetActive(!panel.gameObject.activeSelf);
     }
 

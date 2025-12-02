@@ -1,16 +1,15 @@
-using Fusion;
+﻿using Fusion;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Weapon : NetworkBehaviour
 {
-    HashSet<NetworkObject> hitObjects;
+    HashSet<NetworkObject> hitObjects = new HashSet<NetworkObject>();
     bool atk;
 
-    private void Awake()
-    {
-        hitObjects = new HashSet<NetworkObject>();
-    }
+    public NetworkObject OwnerPlayer;
+    public PlayerStas ownerStats;
+
 
     public void StartAtk()
     {
@@ -26,23 +25,29 @@ public class Weapon : NetworkBehaviour
         if (HasStateAuthority)
         {
             atk = false;
-            hitObjects.Clear();
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (Object.HasStateAuthority == false) return;
-        if(!atk) return;
+        if (!HasStateAuthority) return;
+        if (!atk) return;
+
+
         if (!other.CompareTag("Player")) return;
+        if (!other.TryGetComponent<NetworkObject>(out NetworkObject target)) return;
 
-        if (!other.TryGetComponent<NetworkObject>(out NetworkObject netObj)) return;
-        if(netObj == Object) return;
-        if (!hitObjects.Add(netObj)) return;
+        if (target == OwnerPlayer) return;
 
-        Debug.Log("Hit Player");
-        var otherAtributes = other.GetComponent<PlayerStas>();
-        otherAtributes.RpcTakeDamage(10, Object.InputAuthority);
+        if (!hitObjects.Add(target)) return;
+
+        var stats = other.GetComponent<PlayerStas>();
+        if (stats == null) return;
+
+        stats.RpcTakeDamage(10, Object.InputAuthority);
+        if(stats.Health <= 0)
+        {
+            ownerStats.AddScore(100);
+        }
     }
-
 }

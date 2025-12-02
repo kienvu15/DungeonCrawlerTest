@@ -12,6 +12,7 @@ public class PraMovement : NetworkBehaviour
     [SerializeField] private float jumpForce = 8f;
     [SerializeField] private float gravity = -20f;
     private float verticalVelocity;
+    bool jumpPressed;
 
     [SerializeField] private CharacterController characterController;
     private Kien inputActions;
@@ -23,42 +24,91 @@ public class PraMovement : NetworkBehaviour
     public AudioClip[] FootstepAudioClips;
     [Range(0, 1)] public float FootstepAudioVolume = 0.5f;
 
+    //[Networked, OnChangedRender(nameof(OnchangeScore))] public int score { get; set; }
+
+    void OnchangeScore()
+    {
+        
+    }
+
     public override void Spawned()
     {
         if (Object.HasInputAuthority)
         {
             inputActions = new Kien();
             inputActions.Enable();
-        }
 
-        var Cinecam = GameObject.Find("CinemachineCamera").GetComponent<CinemachineCamera>();
-        if (Cinecam != null)
-        {
-            CameraTarget target = Cinecam.Target;
-            target.TrackingTarget = transform;
-            Cinecam.Target = target;
+            var cineCam = GameObject.Find("CinemachineCamera").GetComponent<CinemachineCamera>();
+            if (cineCam != null)
+            {
+                var target = cineCam.Target;
+                target.TrackingTarget = transform;  
+                target.LookAtTarget = transform;    
+                cineCam.Target = target;
+            }
         }
     }
 
+
     bool atk;
+    bool specialAtk;
     int attack;
     void Update()
     {
-        if (!Object.HasInputAuthority) return;
+        if (!HasInputAuthority) return;
 
         if (inputActions.Player.Atk.WasPerformedThisFrame())
             atk = true;
+
+        if(inputActions.Player.SpecialAtk.WasPerformedThisFrame())
+        {
+            specialAtk = true;
+        }
+
+        if (inputActions.Player.Jump.WasPerformedThisFrame())
+            jumpPressed = true;
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    void RpcRequestAttack()
+    {
+        RpcPlayAttack();
+    }
+
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    void RpcPlayAttack()
+    {
+        attack = Random.Range(0, 2);
+        networkMecanimAnimator.Animator.SetTrigger("atk");
+        networkMecanimAnimator.Animator.SetInteger("attack", attack);
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    void RpcSpecialAttack()
+    {
+        RpcPlaySpecialAttack();
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    void RpcPlaySpecialAttack()
+    {
+        networkMecanimAnimator.Animator.SetTrigger("SPatk");
     }
 
     public override void FixedUpdateNetwork()
     {
         if (!Object.HasInputAuthority) return;
-        if(atk == true)
+        if (atk)
         {
-            attack = Random.Range(0, 2);
-            networkMecanimAnimator.Animator.SetBool("atk", true);
-            networkMecanimAnimator.Animator.SetInteger("attack", attack);
+            SoundManager.Instance.Play("Attack");
+            RpcRequestAttack();
             atk = false;
+        }
+        if(specialAtk)
+        {
+            RpcSpecialAttack();
+            specialAtk = false;
         }
 
         MoveMent();
@@ -72,13 +122,12 @@ public class PraMovement : NetworkBehaviour
         if (characterController.isGrounded)
         {
             networkMecanimAnimator.Animator.SetBool("Jump", false);
-            if (verticalVelocity < 0)
-                verticalVelocity = -1f;
 
-            if (inputActions.Player.Jump.WasPerformedThisFrame())
+            if (jumpPressed)
             {
                 verticalVelocity = jumpForce;
                 networkMecanimAnimator.Animator.SetBool("Jump", true);
+                jumpPressed = false;
             }
         }
         else
@@ -98,6 +147,15 @@ public class PraMovement : NetworkBehaviour
             Quaternion targetRot = Quaternion.LookRotation(moveDir);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Runner.DeltaTime * rotationSpeed);
         }
+    }
+
+    private void OnTriggerEnter(Collider collision)
+    {
+        if (!HasInputAuthority) return;
+        if (!collision.CompareTag("Coin")) return;
+
+        PreUIManager.Instance.SetScore(100);
+        Destroy(collision.gameObject);
     }
 
     private void OnFootstep(AnimationEvent animationEvent)
