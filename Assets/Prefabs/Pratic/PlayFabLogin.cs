@@ -13,7 +13,7 @@ public class PlayFabLogin : MonoBehaviour
 
         var request = new LoginWithCustomIDRequest
         {
-            CustomId = SystemInfo.deviceUniqueIdentifier,
+            CustomId = SystemInfo.deviceUniqueIdentifier + UnityEngine.Random.Range(0, 99999999),
             CreateAccount = true
         };
 

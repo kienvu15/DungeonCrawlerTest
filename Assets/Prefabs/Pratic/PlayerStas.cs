@@ -23,14 +23,15 @@ public class PlayerStas : NetworkBehaviour
 
     public override void Spawned()
     {
-        // Tất cả client đều cần load stats để UI đúng
         PlayFabPlayerStats.OnStatsLoaded += ApplyPlayFabStats;
 
         if (PlayFabPlayerStats.Loaded)
             ApplyPlayFabStats();
 
-        UpdateUI();
+        if (Object.HasInputAuthority)
+            UpdateUI();
     }
+
 
 
     private void ApplyPlayFabStats()
@@ -52,11 +53,11 @@ public class PlayerStas : NetworkBehaviour
 
         Score += amount;
 
-        // Chỉ host save
         PlayFabPlayerStats.SaveStats(Health, MaxHealth, Score);
 
         RpcUpdateUI();
     }
+
 
 
 
@@ -86,11 +87,15 @@ public class PlayerStas : NetworkBehaviour
     }
 
 
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    private void RpcUpdateUI()
+    void RpcUpdateUI()
     {
-        UpdateUI();
+        if (Object.HasInputAuthority)
+        {
+            UpdateUI();  // Chỉ player local update UI của nó
+        }
     }
+
+
 
     void UpdateUI()
     {
@@ -103,8 +108,8 @@ public class PlayerStas : NetworkBehaviour
         if (healthText != null)
             healthText.text = $"{Health}/{MaxHealth}";
 
-        // THÊM:
-        PreUIManager.Instance.SetScore(Score);
+        if (PreUIManager.Instance != null)
+            PreUIManager.Instance.SetScore(Score);
     }
 
 
@@ -113,15 +118,20 @@ public class PlayerStas : NetworkBehaviour
         if (!HasInputAuthority) return;
         if (!col.CompareTag("Coin")) return;
 
-        // Gửi yêu cầu cho Host cộng điểm
-        RPC_RequestAddScore(20);
+        RPC_RequestAddScore(20, Object.InputAuthority);
 
         Destroy(col.gameObject);
     }
 
+
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-    void RPC_RequestAddScore(int amount)
+    void RPC_RequestAddScore(int amount, PlayerRef target)
     {
-        AddScore(amount);
+        // Tìm đúng player muốn cộng điểm
+        if (Object.InputAuthority == target)
+        {
+            AddScore(amount);
+        }
     }
+
 }
